@@ -198,7 +198,7 @@ if __name__ == '__main__':
 	img_dir_path = 'test_images/'
 
 	# path to 'test_image_1.png' image file
-	file_num = 9
+	file_num = 1
 	img_file_path = img_dir_path + 'test_image_' + str(file_num) + '.png'
 	
 	# read image using opencv
