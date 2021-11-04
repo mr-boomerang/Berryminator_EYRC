@@ -16,8 +16,8 @@
 *****************************************************************************************
 '''
 
-# Team ID:			[ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:			[ 1707 ]
+# Author List:		[ Parth Shah, Shubhankar Riswadkar, Chirag Jain, Bhavya Vira ]
 # Filename:			task_1c.py
 # Functions:		read_distance_sensor, control_logic
 # 					[ Comma separated list of functions in this file ]
@@ -92,7 +92,10 @@ def read_distance_sensor(client_id, sensor_handle):
 	##############	ADD YOUR CODE HERE	##############
 	sensor_reading = sim.simxReadProximitySensor(client_id, sensor_handle, sim.simx_opmode_buffer)
 	detected = sensor_reading[1]
-	distance = sensor_reading[2][2]
+	if detected:
+		distance = sensor_reading[2][2]
+	else:
+		distance = -1
 	##################################################
 	return detected, distance
 
@@ -120,64 +123,58 @@ def control_logic(client_id):
 	"""
 
 	##############  ADD YOUR CODE HERE  ##############
-	_, distance_sensor_1_handle = sim.simxGetObjectHandle(client_id, 'distance_sensor_1', sim.simx_opmode_blocking)
-	_, distance_sensor_2_handle = sim.simxGetObjectHandle(client_id, 'distance_sensor_2', sim.simx_opmode_blocking)
-
+	#Initializing Wheel Handles
 	_, left_wheel_handle = sim.simxGetObjectHandle(client_id, 'left_joint', sim.simx_opmode_blocking)
 	_, right_wheel_handle = sim.simxGetObjectHandle(client_id, 'right_joint', sim.simx_opmode_blocking)
+	#The bot is stopped - Set initial velocity to 0
+	_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 0, sim.simx_opmode_streaming)
+	_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0, sim.simx_opmode_streaming)
 
+
+	#Intitializing Proximity Sensor Handles
+	_, distance_sensor_1_handle = sim.simxGetObjectHandle(client_id, 'distance_sensor_1', sim.simx_opmode_blocking)
+	_, distance_sensor_2_handle = sim.simxGetObjectHandle(client_id, 'distance_sensor_2', sim.simx_opmode_blocking)
+	#Start streaming Proximity Sensor Data to buffer
 	sim.simxReadProximitySensor(client_id, distance_sensor_1_handle, sim.simx_opmode_streaming)
 	sim.simxReadProximitySensor(client_id, distance_sensor_2_handle, sim.simx_opmode_streaming)
 	
+	#Read Proximity Sensor Data from buffer
 	detected_1, distance_1 = read_distance_sensor(client_id, distance_sensor_1_handle)
 	detected_2, distance_2 = read_distance_sensor(client_id, distance_sensor_2_handle)
 
-	while not distance_2:
-		detected_1, distance_1 = read_distance_sensor(client_id, distance_sensor_1_handle)
-		detected_2, distance_2 = read_distance_sensor(client_id, distance_sensor_2_handle)
 
-	_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 1, sim.simx_opmode_streaming)
-	_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 1, sim.simx_opmode_streaming)
-
+	#Starting the bot
 	mode = "forward"
-	# print("-------------")
-	# print(distance_2)
-	distance_from_wall = distance_2
-	# print(distance_from_wall)
-	turns = 0
+	_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 1, sim.simx_opmode_streaming)
+	_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle,1, sim.simx_opmode_streaming)
 
-	prev = distance_2
+	turns = 0	#Number of turns taken
+	prev_distance_2 = distance_2
 	while(1):
 		detected_1, distance_1 = read_distance_sensor(client_id, distance_sensor_1_handle)
 		detected_2, distance_2 = read_distance_sensor(client_id, distance_sensor_2_handle)
-		# print("Sensor1 - ", detected_1, distance_1)
-		# print("Sensor2 - ", detected_2, distance_2)
-		if mode == "forward" and detected_1 == True and distance_1 <= distance_from_wall:
-			# print("Going to Turning")
-			# print(distance_1, distance_2)
+
+		# Corner - Entry Condition
+		if (mode == "forward") and (detected_1) and (distance_1 <= distance_2):
+			mode = "turning"
+			#The bot reaches A after completing 3 turns and going forward, stop the bot before taking the 4th turn
 			if turns == 3:
 				break
-			distance_from_wall = distance_1
-			_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, -0.1, sim.simx_opmode_streaming)
-			_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0.1, sim.simx_opmode_streaming)
-			mode = "turning"
+			#Rotate the bot
+			_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, -0.15, sim.simx_opmode_streaming)
+			_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0.15, sim.simx_opmode_streaming)
 			turns += 1
 
-		if mode == "turning" and (detected_1 == False) and (distance_2 - prev > 0):
-			# print("Going to Forward")
-			_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 0.5, sim.simx_opmode_streaming)
-			_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0.5, sim.simx_opmode_streaming)
+		# Corner - Exit Condition
+		if (mode == "turning") and (not detected_1) and (distance_2 > prev_distance_2):
 			mode = "forward"
-		prev = distance_2
-		# if mode == "forward":
-		# 	_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 0.5, sim.simx_opmode_streaming)
-		# 	_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0.5, sim.simx_opmode_streaming)
-		# elif mode == "turning":
-		# else:
-		# _ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 0, sim.simx_opmode_streaming)
-		# _ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0, sim.simx_opmode_streaming)
-		# print(round(distance_1, 3), round(distance_2, 3), distance_from_wall)
+			#Move Forward Bot
+			_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 1, sim.simx_opmode_streaming)
+			_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle,1, sim.simx_opmode_streaming)
+		
+		prev_distance_2 = distance_2
 
+	#Stop the bot
 	_ = sim.simxSetJointTargetVelocity(client_id, left_wheel_handle, 0, sim.simx_opmode_oneshot)
 	_ = sim.simxSetJointTargetVelocity(client_id, right_wheel_handle, 0, sim.simx_opmode_oneshot)
 

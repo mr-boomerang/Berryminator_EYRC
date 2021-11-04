@@ -15,8 +15,8 @@
 *****************************************************************************************
 '''
 
-# Team ID:			[ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:			[ BM_1707 ]
+# Author List:		[ Parth Shah, Shubhankar Riswadkar, Chirag Jain, Bhavya Vira ]
 # Filename:			task_1a.py
 # Functions:		detect_shapes
 # 					[ Comma separated list of functions in this file ]
@@ -84,14 +84,19 @@ def detect_shapes(img):
 	detected_shapes = []
 
 	##############	ADD YOUR CODE HERE	##############
+	#Converting BGR to Grayscale
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+	
+	#Thresholding image to make all shapes of same color
 	_, threshold = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
 
+	#Finding all Contours
 	contours, hierarchy = cv2.findContours(
 		threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
 	is_outer  = 0
 	for contour in contours:
+		#First Contour detected is always the entire image boundary, we don't require that!!
 		if is_outer == 0:
 			is_outer = 1
 			continue

@@ -17,8 +17,8 @@
 '''
 
 
-# Team ID:			[ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:			[ BM_1707 ]
+# Author List:		[ Parth Shah, Shubhankar Riswadkar, Chirag Jain, Bhavya Vira ]
 # Filename:			task_1b.py
 # Functions:		init_remote_api_server, start_simulation, stop_simulation, exit_remote_api_server, 
 #                   get_vision_sensor_image, transform_vision_sensor_image, detect_qr_codes
@@ -162,7 +162,10 @@ def get_vision_sensor_image(client_id):
 	return_code = 0
 
 	##############	ADD YOUR CODE HERE	##############
+	#Get Vision Sensor Handle
 	return_code, visionSensorHandle =  sim.simxGetObjectHandle(client_id, 'vision_sensor', sim.simx_opmode_blocking)
+	
+	#Read Vision Sensor Image
 	if return_code == sim.simx_return_ok:
 		return_code, image_resolution, vision_sensor_image = sim.simxGetVisionSensorImage(client_id, visionSensorHandle, 0, sim.simx_opmode_blocking)
 	
@@ -205,7 +208,10 @@ def transform_vision_sensor_image(vision_sensor_image, image_resolution):
 	transformed_image = None
 
 	##############	ADD YOUR CODE HERE	##############
+	#Converting to Numpy Array of uint8
 	transformed_image = np.array(vision_sensor_image, dtype=np.uint8)
+	
+	#Convert to a 3D array from a 1D array 
 	transformed_image = transformed_image.reshape(image_resolution[0], image_resolution[1], -1)
 
 	#RGB to BGR
@@ -276,7 +282,6 @@ def exit_remote_api_server(client_id):
 	"""
 
 	##############	ADD YOUR CODE HERE	##############
-	
 	sim.simxFinish(client_id)
 
 	##################################################
@@ -307,14 +312,19 @@ def detect_qr_codes(transformed_image):
 
 	qr_codes = []
 
+	#Using Pyzbar to detect QR-Codes
 	detected_qr_codes = decode(transformed_image)
-	# print(detected_qr_codes)
+	
 	for qr_code in detected_qr_codes:
+		#Extract the data from QR code 
 		data = qr_code.data.decode()
-		(x, y, w, h) = qr_code.rect
 
+		#Get Centroid of QR Code
+		(x, y, w, h) = qr_code.rect
 		center_x = (x + (x + w)) / 2
 		center_y = (y + (y + h)) / 2
+
+		#Append details of QR code to list
 		qr_codes.append([data, (center_x, center_y)])
 
 	return qr_codes
