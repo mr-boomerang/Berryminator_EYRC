@@ -76,7 +76,7 @@ upper_blue = np.array([hsv_blue[0] + 10, 255, 255])
 
 
 yellow = np.uint8([[[0, 255, 255]]]) # RGB for yellow
-hsv_yellow = cv2.cvtColor(yellow, cv2.COLOR_BGR2HSV)[0][0] # HSV for Yellow
+hsv_yellow = cv2.cvtColor(yellow, cv2.COLOR_BGR2HSV)[0][0] # HSV for 
 #Defines the HSV Ranges for the color YELLOW
 lower_yellow = np.array([hsv_yellow[0] - 10, 100, 100])
 upper_yellow = np.array([hsv_yellow[0] + 10, 255, 255])
@@ -330,7 +330,7 @@ def detect_berry_positions(berries_dictionary):
 			v = np.float32(np.interp(centroid_y, [0, 511], [-0.5, 0.5]))
 			dis = np.float32(np.interp(depth, [0, 1], [0.01, 2.00e+0]))
 			
-			dis += 0.0125	## Adding 0.0125 as the average depth will be (Radius/2) metres nearer to the camera. Radius of each berry is 0.25m. 
+			dis += 0.0125	## Adding 0.0125 as the average depth will be (Radius/2) metres nearer to the camera. Radius of each berry is 0.025m. 
 
 			## Rounding to 2 decimal places gives exactly matches the Actual Berry Positions obtained in the task_2a_outputs.txt file.
 			## However, the code passes all the tests even without rounding.
