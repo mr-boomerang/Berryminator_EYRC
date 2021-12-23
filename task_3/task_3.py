@@ -588,7 +588,8 @@ def task_3_primary(client_id, target_points):
 			y_enc = (enc_fl + enc_rr + enc_fr + enc_rl) / 4
 			rot_enc = (((enc_fl + enc_rl) - (enc_fr + enc_rr)) / 4)
 
-			k_p_rot = -300
+			# k_p_rot = -300
+			k_p_rot = 0	
 			rot_velocity = 0 + (k_p_rot * rot_enc)
 			print(rot_enc, rot_velocity)
 
