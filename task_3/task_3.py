@@ -61,11 +61,62 @@ except Exception:
 ## readable and easy to understand.                         ##
 ##############################################################
 
+def find_direction(source, target):
+	"""
+	Purpose:
+	---
+	This function determines the direction in which the robot will move.
+	The robot can move in 4 directions - UP, DOWN, LEFT, RIGHT
+	Diagonal movement is not conisedered as the Path Planning Algorithm considers Manhattan Distance. 
+	"""
+	direction = None
+	if source[0] == target[0]:
+		if source[1] < target[1]:
+			direction = 'up'
+		else:
+			direction = 'down'
+	elif source[1] == target[1]:
+		if source[0] < target[0]:
+			direction = 'right'
+		else:
+			direction = 'left'
+	return direction
 
+def wrapper_qr_code(client_id):
+	"""
+	Purpose:
+	---
+	This is a wrapper function for QR code scanning and detection.
+	It obtains image from Vision Sensor, transforms the image, and detects QR code in the image.
+	"""
+	vision_sensor_image, image_resolution, return_code = get_vision_sensor_image(client_id)
+	transformed_image = transform_vision_sensor_image(vision_sensor_image, image_resolution)
+	qr_codes_data, qr_codes_position = detect_qr_codes(transformed_image)
+	
+	return qr_codes_data, qr_codes_position
 
+def wrapper_encoders(client_id):
+	"""
+	Purpose:
+	---
+	This is a wrapper function for obtaining Odometry of the robot from Encoders.
+	The function obtains encoder, readings, converts it in terms of metres.
+	We have applied Kinematic equations to obtain the X, Y and Rotation of the robot from encoder readings
+	"""
+	joints_position = encoders(client_id)
+	enc_fl, enc_rl, enc_rr, enc_fr = joints_position
+	
+	#Distance in CM
+	enc_fl *= 0.01
+	enc_rl *= 0.01
+	enc_fr *= 0.01
+	enc_rr *= 0.01
+	
+	x_enc = ((enc_fl + enc_rr) - (enc_fr + enc_rl)) / 4
+	y_enc = (enc_fl + enc_rr + enc_fr + enc_rl) / 4
+	rot_enc = (((enc_fl + enc_rl) - (enc_fr + enc_rr)) / 4)
 
-
-
+	return x_enc, y_enc, rot_enc
 ##############################################################
 
 
@@ -462,13 +513,109 @@ def encoders(client_id):
 	return joints_position
 
 
-def nav_logic():
+def nav_logic(client_id, wheel_joints, path):
 	"""
 	Purpose:
 	---
 	This function should implement your navigation logic. 
 	"""
 
+	print(path)
+	
+	local_source = path.pop(0)
+	local_target = path.pop(0)
+
+	speed = 10 # The speed at which the bot travels in the direction of motion
+
+	print(local_source, " --- ", local_target)
+	mode = 1
+	while(1):
+		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
+		qr_codes_data, qr_codes_position = wrapper_qr_code(client_id)
+		direction = find_direction(local_source, local_target)
+
+		k_p = -40
+		k_p_rot = -200
+		velocity_rot = 0 + (k_p_rot * rot_enc)  # P-controller to adjust the robot's rotational drift
+
+		if mode == 1:
+			'''
+			Reach near the QR code
+			'''
+			if str(local_target) in qr_codes_data:
+				# Target is in vicinty
+				mode = 2 # This mode centers the robot on the QR
+				continue
+
+			v_x = 0
+			v_y = 0
+			if qr_codes_data:
+				x_qr, y_qr = qr_codes_position[0]
+				# P-controller to correct deviation in the direction perpendicular to the robot's movement
+				# The controller takes the position of QR code as the feedback
+				v_x = k_p * x_qr
+				v_y = k_p * y_qr
+			
+			if direction == 'up':
+				if str((local_target[0], local_target[1] - 1)) in qr_codes_data:
+					# Reducing speed, as the next QR code is target.
+					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
+					speed = 7
+				velocity_y = speed
+				velocity_x = v_x
+			elif direction == 'down':
+				if str((local_target[0], local_target[1] + 1)) in qr_codes_data:
+					# Reducing speed, as the next QR code is target.
+					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
+					speed = 7
+				velocity_y = -speed
+				velocity_x = v_x
+			elif direction == 'left':
+				if str((local_target[0] + 1, local_target[1])) in qr_codes_data:
+					# Reducing speed, as the next QR code is target.
+					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
+					speed = 7
+				velocity_y = v_y
+				velocity_x = speed
+			elif direction == 'right':
+				if str((local_target[0] - 1, local_target[1])) in qr_codes_data:
+					# Reducing speed, as the next QR code is target.
+					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
+					speed = 7
+				velocity_y = v_y
+				velocity_x = -speed
+			
+			set_bot_movement(client_id, wheel_joints, velocity_y, velocity_x, velocity_rot)
+		elif mode == 2:
+			'''
+			Align the robot exactly above the QR code
+			'''
+			if not len(qr_codes_data):
+				#If QR code not found, keep moving.
+				continue
+			
+			x_qr, y_qr = qr_codes_position[0]
+
+			# P-controller to correct deviation of Robot in X and Y direction from the center of QR code.	
+			v_x = k_p * x_qr
+			v_y = k_p * y_qr
+			set_bot_movement(client_id, wheel_joints, v_y, v_x, velocity_rot)
+			
+			# Keeping a window of 0.02m from center
+			if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
+				# The bot is aligned on the QR code
+				set_bot_movement(client_id, wheel_joints, 0, 0, 0)
+				if len(path) == 0:
+					# Break the nav loop, if global target has been reached
+					break
+
+				# Updating local_source and local_target
+				local_source = local_target
+				local_target = path.pop(0)
+
+				speed = 10
+				print(local_source, " --- ", local_target)
+				mode = 1
 
 def shortest_path(source, destination):
 	"""
@@ -489,7 +636,7 @@ def shortest_path(source, destination):
 				if j != y:
 					grid[(x, y)].append((x, j))
 					e += 1
-	# print(e)
+
 	visited ={}
 	distance = {}
 	predecessor = {}
@@ -560,273 +707,18 @@ def task_3_primary(client_id, target_points):
 	
 	"""
 	wheel_joints = init_setup(client_id)
-	print("............................")
-	source = (0, 0)
-	for destination in target_points:
-		path = shortest_path(source, destination)
-		print(path)
-
-		current = path[0]
-		path.pop(0) # removing start point
-		target = path[0]
-		path.pop(0)
-
-		print(current, " --- ", target)
-		mode = 1
-		speed = 10
-		while(1):
-			joints_position = encoders(client_id)
-			enc_fl, enc_rl, enc_rr, enc_fr = joints_position
-			
-			#Distance in CM
-			enc_fl *= 0.01
-			enc_rl *= 0.01
-			enc_fr *= 0.01
-			enc_rr *= 0.01
-			
-			x_enc = ((enc_fl + enc_rr) - (enc_fr + enc_rl)) / 4
-			y_enc = (enc_fl + enc_rr + enc_fr + enc_rl) / 4
-			rot_enc = (((enc_fl + enc_rl) - (enc_fr + enc_rr)) / 4)
-
-			# k_p_rot = -300
-			k_p_rot = 0	
-			rot_velocity = 0 + (k_p_rot * rot_enc)
-			print(rot_enc, rot_velocity)
-
-			vision_sensor_image, image_resolution, return_code = get_vision_sensor_image(client_id)
-			transformed_image = transform_vision_sensor_image(vision_sensor_image, image_resolution)
-			qr_codes_data, qr_codes_position = detect_qr_codes(transformed_image)
-			
-			
-			if current[0] == target[0]:
-				if current[1] < target[1]:
-					direction = 'up'
-				else:
-					direction = 'down'
-			elif current[1] == target[1]:
-				if current[0] < target[0]:
-					direction = 'right'
-				else:
-					direction = 'left'
-			print(direction)
-
-			print(qr_codes_data)
-
-			print()
-
-			if mode == 1:
-				if str(target) in qr_codes_data:
-					mode = 2
-					continue
-									
-				if len(qr_codes_data):
-					x_qr, y_qr = qr_codes_position[0]
-					QR = [x_enc - x_qr*100, y_enc - y_qr*100]
-					k_p = -40
-					v_x = k_p * x_qr
-					v_y = k_p * y_qr
-				else:
-					v_x = 0
-					v_y = 0
-
-				if direction == 'up':
-					if str((target[0], target[1] - 1)) in qr_codes_data:
-						speed = 5
-					velocity_y = speed
-					velocity_x = v_x
-				elif direction == 'down':
-					if str((target[0], target[1] + 1)) in qr_codes_data:
-						speed = 5
-					velocity_y = -speed
-					velocity_x = v_x
-				elif direction == 'left':
-					if str((target[0] + 1, target[1])) in qr_codes_data:
-						speed = 5
-					velocity_y = v_y
-					velocity_x = speed
-				elif direction == 'right':
-					if str((target[0] - 1, target[1])) in qr_codes_data:
-						speed = 5
-					velocity_y = v_y
-					velocity_x = -speed
-					
-				set_bot_movement(client_id, wheel_joints, velocity_y, velocity_x, rot_velocity)
-			elif mode == 2:
-				if not len(qr_codes_data):
-					continue
-				x_qr, y_qr = qr_codes_position[0]
-				k_p = -40
-				v_x = k_p * x_qr
-				v_y = k_p * y_qr
-				set_bot_movement(client_id, wheel_joints, v_y, v_x, rot_velocity)
-				if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
-					print(x_qr, y_qr, mode)
-					set_bot_movement(client_id, wheel_joints, 0, 0, rot_velocity)
-					if len(path) == 0:
-						break
-
-					current = target
-					target = path.pop(0)
-
-					speed = 10
-					print(current, " --- ", target)
-					mode = 1
-		
-		source = destination
-	
-
-	# mode = 1
-	# while(1):	
-	# 	joints_position = encoders(client_id)
-	# 	enc_fl, enc_rl, enc_rr, enc_fr = joints_position
-
-	# 	#Distance in CM
-	# 	enc_fl *= 10
-	# 	enc_rl *= 10
-	# 	enc_fr *= 10
-	# 	enc_rr *= 10
-		
-
-
-	# 	x_enc = ((enc_fl + enc_rr) - (enc_fr + enc_rl)) / 4
-	# 	y_enc = (enc_fl + enc_rr + enc_fr + enc_rl) / 4
-	# 	rot_enc = ((enc_fl + enc_rl) - (enc_fr + enc_rr)) / 4
-		
-
-	# 	vision_sensor_image, image_resolution, return_code = get_vision_sensor_image(client_id)
-	# 	transformed_image = transform_vision_sensor_image(vision_sensor_image, image_resolution)
-	# 	qr_codes_data, qr_codes_position = detect_qr_codes(transformed_image)
-
-
-	# 	speed = 5
-	# 	# print(mode)
-	# 	# print(qr_codes_data)
-	# 	# print(round(x_enc, 2), round(y_enc, 2), round(rot_enc, 2))
-	# 	print(qr_codes_data)
-	# 	if mode == 1:
-	# 		if '(4, 0)' in qr_codes_data:
-	# 			mode = 2
-	# 		if len(qr_codes_data):
-	# 			x_qr, y_qr = qr_codes_position[0]
-	# 			QR = [x_enc - x_qr*100, y_enc - y_qr*100]
-	# 			k_p = -40
-	# 			v_x = k_p * x_qr
-	# 			v_y = k_p * y_qr
-	# 			# print(x_enc, y_enc)
-	# 		else:
-	# 			# print()
-	# 			v_x = 0
-	# 			v_y = 0
-	# 		set_bot_movement(client_id, wheel_joints, v_y, -speed, 0)
-	# 	elif mode == 2:
-	# 		if not len(qr_codes_data):
-	# 			continue
-	# 		x_qr, y_qr = qr_codes_position[0]
-	# 		k_p = -40
-	# 		v_x = k_p * x_qr
-	# 		v_y = k_p * y_qr
-	# 		set_bot_movement(client_id, wheel_joints, v_y, v_x, 0)
-	# 		if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
-	# 			print(x_qr, y_qr, mode)
-	# 			set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	# 			mode = 3
-	# 	elif mode == 3:
-	# 		if '(4, 4)' in qr_codes_data:
-	# 			mode = 4
-	# 		if len(qr_codes_data):
-	# 			x_qr, y_qr = qr_codes_position[0]
-	# 			QR = [x_enc - x_qr*100, y_enc - y_qr*100]
-	# 			k_p = -40
-	# 			v_x = k_p * x_qr
-	# 			v_y = k_p * y_qr
-	# 			# print(x_enc, y_enc)
-	# 		else:
-	# 			# print()
-	# 			v_x = 0
-	# 			v_y = 0
-	# 		set_bot_movement(client_id, wheel_joints, speed, v_x, 0)
-	# 	elif mode == 4:
-	# 		if not len(qr_codes_data):
-	# 			continue
-	# 		x_qr, y_qr = qr_codes_position[0]
-	# 		k_p = -40
-	# 		v_x = k_p * x_qr
-	# 		v_y = k_p * y_qr
-	# 		set_bot_movement(client_id, wheel_joints, v_y, v_x, 0)
-	# 		print()
-	# 		if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
-	# 			print(x_qr, y_qr, mode)
-	# 			set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	# 			mode = 5
-	# 	elif mode == 5:
-	# 		if '(0, 4)' in qr_codes_data:
-	# 			mode = 6
-	# 		if len(qr_codes_data):
-	# 			x_qr, y_qr = qr_codes_position[0]
-	# 			QR = [x_enc - x_qr*100, y_enc - y_qr*100]
-	# 			k_p = -40
-	# 			v_x = k_p * x_qr
-	# 			v_y = k_p * y_qr
-	# 			# print(x_enc, y_enc)
-	# 		else:
-	# 			# print()
-	# 			v_x = 0
-	# 			v_y = 0
-	# 		set_bot_movement(client_id, wheel_joints, v_y, speed, 0)
-	# 	elif mode == 6:
-	# 		if not len(qr_codes_data):
-	# 			continue
-	# 		x_qr, y_qr = qr_codes_position[0]
-	# 		k_p = -40
-	# 		v_x = k_p * x_qr
-	# 		v_y = k_p * y_qr
-	# 		set_bot_movement(client_id, wheel_joints, v_y, v_x, 0)
-	# 		if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
-	# 			print(x_qr, y_qr, mode)
-	# 			set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	# 			mode = 7
-	# 	elif mode == 7:
-	# 		if '(0, 0)' in qr_codes_data:
-	# 			mode = 8
-	# 		if len(qr_codes_data):
-	# 			x_qr, y_qr = qr_codes_position[0]
-	# 			QR = [x_enc - x_qr*100, y_enc - y_qr*100]
-	# 			k_p = -40
-	# 			v_x = k_p * x_qr
-	# 			v_y = k_p * y_qr
-	# 			# print(x_enc, y_enc)
-	# 		else:
-	# 			# print()
-	# 			v_x = 0
-	# 			v_y = 0
-	# 		set_bot_movement(client_id, wheel_joints, -speed, v_x, 0)
-	# 	elif mode == 8:
-	# 		if not len(qr_codes_data):
-	# 			continue
-	# 		x_qr, y_qr = qr_codes_position[0]
-	# 		k_p = -40
-	# 		v_x = k_p * x_qr
-	# 		v_y = k_p * y_qr
-	# 		set_bot_movement(client_id, wheel_joints, v_y, v_x, 0)
-	# 		if (abs(x_qr) < 0.02) and (abs(y_qr) < 0.02):
-	# 			print(x_qr, y_qr, mode)
-	# 			set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	# 			mode = 1
-
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-
-	vision_sensor_image, image_resolution, return_code = get_vision_sensor_image(client_id)
-	print(image_resolution, return_code)
-
-	transformed_image = transform_vision_sensor_image(vision_sensor_image, image_resolution)
-	# cv2.imshow("ortho", transformed_image)
-
-	# qr_codes = detect_qr_codes(transformed_image)
-	# print(qr_codes)
-		
-
-	# cv2.waitKey(0)
-	# cv2.destroyAllWindows()
+	
+	print("............................")
+	
+	global_source = (0, 0) # The robot will always start form (0, 0)
+	#Iterate the list of target_points
+	for global_target in target_points:
+		path = shortest_path(global_source, global_target) #Finding the shortest path to the target	
+		nav_logic(client_id, wheel_joints, path) # Traverse the Shortest Path
+		global_source = global_target # After reaching the target, target becomes source
+	
+	set_bot_movement(client_id, wheel_joints, 0, 0, 0) # Stop the robot
 
 
 
