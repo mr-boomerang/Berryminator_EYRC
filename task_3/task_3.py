@@ -520,14 +520,14 @@ def nav_logic(client_id, wheel_joints, path):
 	This function should implement your navigation logic. 
 	"""
 
-	print(path)
+	# print(path)
 	
 	local_source = path.pop(0)
 	local_target = path.pop(0)
 
 	speed = 10 # The speed at which the bot travels in the direction of motion
 
-	print(local_source, " --- ", local_target)
+	# print(local_source, " --- ", local_target)
 	mode = 1
 	while(1):
 		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
@@ -560,28 +560,28 @@ def nav_logic(client_id, wheel_joints, path):
 				if str((local_target[0], local_target[1] - 1)) in qr_codes_data:
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
-					speed = 7
+					speed = 5
 				velocity_y = speed
 				velocity_x = v_x
 			elif direction == 'down':
 				if str((local_target[0], local_target[1] + 1)) in qr_codes_data:
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
-					speed = 7
+					speed = 5
 				velocity_y = -speed
 				velocity_x = v_x
 			elif direction == 'left':
 				if str((local_target[0] + 1, local_target[1])) in qr_codes_data:
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
-					speed = 7
+					speed = 5
 				velocity_y = v_y
 				velocity_x = speed
 			elif direction == 'right':
 				if str((local_target[0] - 1, local_target[1])) in qr_codes_data:
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
-					speed = 7
+					speed = 5
 				velocity_y = v_y
 				velocity_x = -speed
 			
@@ -614,7 +614,7 @@ def nav_logic(client_id, wheel_joints, path):
 				local_target = path.pop(0)
 
 				speed = 10
-				print(local_source, " --- ", local_target)
+				# print(local_source, " --- ", local_target)
 				mode = 1
 
 def shortest_path(source, destination):
@@ -623,8 +623,11 @@ def shortest_path(source, destination):
 	---
 	This function should be used to find the shortest path on the given floor between the destination and source co-ordinates.
 	"""
+	# Creating a Map of the QR_Plane
 	grid = {}
 	e = 0 
+
+	# Each vertex (QR) has an edge to every other vertex (QR) in the same row or column
 	for x in range(0, 9):
 		for y in range(0, 13):
 			grid[(x, y)] = []
@@ -642,40 +645,53 @@ def shortest_path(source, destination):
 	predecessor = {}
 	for x in range(9):
 		for y in range(13):
-			visited[(x, y)] = False
-			distance[(x, y)] = 100000
-			predecessor[(x, y)] = -1
+			visited[(x, y)] = False 	# No Vertex has been visited yet
+			distance[(x, y)] = 100000	# Every Vertex is unreachable yet
+			predecessor[(x, y)] = -1	# There is no predecessor yet
 
 	reached = False
 	queue = []
 
+	# Starting from source
 	queue.append(source)
 	visited[source] = True
 	distance[source] = 0
+
+	# BFS
 	while queue:
+		# Get all neighbors of a vertex and dequeue it
 		u = queue[0]
 		queue.pop(0)
 
 		for v in grid[u]:
+			# If a adjacent has not been visited, 
+            # then mark it visited and enqueue it
+			# Mark predecess of this vertex as V and its distance as (distance_of_u + 1)
+			# because it is one edge from u
 			if visited[v] == False:
 				visited[v] = True
-				distance[v] = distance[u] + 1
-				predecessor[v] = u
 				queue.append(v)
+				distance[v] = distance[u] + 1
+				predecessor[v] = u	
 
+				# If V is what we want, yayyy!!
 				if v == destination:
 					reached = True
 					break
 		if reached:
 			break
 	
+	# Now we have established Predecessors of vertexes if traversed from source,
+	# Crawling backwards to find path
 	path = []
 	crawl = destination
 	path.append(crawl)
+	# Crawl backwards until you can't crawl backwards (source has no predecessor)
 	while predecessor[crawl] != -1:
 		crawl = predecessor[crawl]
 		path.append(crawl)
 
+	# Reverse Path to make it start from source and end at destination
 	path.reverse()
 	return path
 
@@ -709,7 +725,7 @@ def task_3_primary(client_id, target_points):
 	wheel_joints = init_setup(client_id)
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
 	
-	print("............................")
+	# print("............................")
 	
 	global_source = (0, 0) # The robot will always start form (0, 0)
 	#Iterate the list of target_points
