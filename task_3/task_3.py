@@ -525,7 +525,7 @@ def nav_logic(client_id, wheel_joints, path):
 	local_source = path.pop(0)
 	local_target = path.pop(0)
 
-	speed = 10 # The speed at which the bot travels in the direction of motion
+	speed = 11 # The speed at which the bot travels in the direction of motion
 
 	# print(local_source, " --- ", local_target)
 	mode = 1
