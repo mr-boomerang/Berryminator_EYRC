@@ -62,6 +62,98 @@ import task_1b
 import task_2a
 from task_3 import *
 
+
+def open_gripper(client_id):
+	command = ["open"]
+	emptybuff = bytearray()
+    
+	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	while return_code != 0:
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+        
+def close_gripper(client_id):
+	command = ["close"]
+	emptybuff = bytearray()
+    
+	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	while return_code != 0:
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+        
+def move_arm_to_target(client_id, reference_frame, x, y, z):
+	command = [reference_frame, x, y, z]
+	emptybuff = bytearray()
+	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'goal_IK',[],command,[],emptybuff,sim.simx_opmode_blocking)
+	print(return_code)	
+
+def initial_pose_arm(client_id):
+    emptybuff = bytearray()
+    return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
+    print(return_code)
+
+
+############################# EVAL FUNCTION #############################
+def send_identified_berry_data(client_id,berry_name,x_coor,y_coor,depth):
+	"""
+	Purpose:
+	---
+	Teams should call this function as soon as they identify a berry to pluck. This function should be called only when running via executable.
+	
+	NOTE: 
+	1. 	Correct Pluck marks will only be awarded if the team plucks the last detected berry. 
+		Hence before plucking, the correct berry should be identified and sent via this function.
+
+	2.	Accuracy of detection should be +-0.025m.
+
+	Input Arguments:
+	---
+	`client_id` 	:  [ integer ]
+		the client_id generated from start connection remote API, it should be stored in a global variable
+
+	'berry_name'		:	[ string ]
+			name of the detected berry.
+
+	'x_coor'			:	[ float ]
+			x-coordinate of the centroid of the detected berry.
+
+	'y_coor'			:	[ float ]
+			y-coordinate of the centroid of the detected berry.
+
+	'depth'			:	[ float ]
+			z-coordinate of the centroid of the detected berry.
+
+	Returns:
+	---
+	`return_code`		:	[ integer ]
+			A remote API function return code
+			https://www.coppeliarobotics.com/helpFiles/en/remoteApiConstants.htm#functionErrorCodes
+
+	Example call:
+	---
+	return_code=send_identified_berry_data(berry_name,x_coor,y_coor)
+	
+	"""
+	##################################################
+	## You are NOT allowed to make any changes in the code below. ##
+	emptybuff = bytearray()
+
+	if(type(berry_name)!=str):
+		berry_name=str(berry_name)
+
+	if(type(x_coor)!=float):
+		x_coor=float(x_coor)
+
+	if(type(y_coor)!=float):
+		y_coor=float(y_coor)	
+	
+	if(type(depth)!=float):
+		depth=float(depth)
+	
+	data_to_send=[berry_name,str(x_coor),str(y_coor),str(depth)]					
+	return_code,outints,oufloats,outstring,outbuffer= sim.simxCallScriptFunction(client_id,'eval_bm',sim.sim_scripttype_childscript,'detected_berry_by_team',[],[],data_to_send,emptybuff,sim.simx_opmode_blocking)
+	return return_code
+	
+	##################################################
+
 ##############################################################
 
 
@@ -89,18 +181,18 @@ def task_4_primary(client_id):
 	
 	target_points = [(4, 3)]
 	task_3_primary(client_id, target_points)
-	time.sleep(1)
+	# time.sleep(1)
 	
 	wheel_joints = init_setup(client_id)
 	start_x_enc, start_y_enc, start_rot_enc = wrapper_encoders(client_id)
 	while(1):
 		set_bot_movement(client_id, wheel_joints, 5, 0, 0)
 		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
-		print(round(x_enc - start_x_enc, 2), round(y_enc - start_y_enc, 2))
-		if y_enc - start_y_enc > 0.07:
+		if y_enc - start_y_enc > 0.08:
 			break
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	time.sleep(5)
+	# time.sleep(5)
+
 
 	return_code, berry_detector_handle = sim.simxGetObjectHandle(client_id, 'vision_sensor_2', sim.simx_opmode_blocking)
 	vision_sensor_image, image_resolution, return_code = task_2a.get_vision_sensor_image(client_id, berry_detector_handle)
@@ -113,18 +205,43 @@ def task_4_primary(client_id):
 
 		if (type(transformed_image) is np.ndarray) and (type(transformed_depth_image) is np.ndarray):
 			berries_dictionary = task_2a.detect_berries(transformed_image, transformed_depth_image)
-			print("Berries Dictionary = ", berries_dictionary)
+			# print("Berries Dictionary = ", berries_dictionary)
 			berry_positions_dictionary = task_2a.detect_berry_positions(berries_dictionary)
-			print("Berry Positions Dictionary = ",berry_positions_dictionary)
+			# print("Berry Positions Dictionary = ",berry_positions_dictionary)
+			for berry_type in berry_positions_dictionary.keys():
+				print(berry_type)
+				for berry in berry_positions_dictionary[berry_type]:
+					print(berry)
 
 			labelled_image = task_2a.get_labeled_image(transformed_image, berries_dictionary, berry_positions_dictionary)
 			
-			cv2.imshow('transformed image', transformed_image)
-			cv2.imshow('transformed depth image', transformed_depth_image)
-			cv2.imshow('labelled image', labelled_image)
+			# cv2.imshow('transformed image', transformed_image)
+			# cv2.imshow('transformed depth image', transformed_depth_image)
+			# cv2.imshow('labelled image', labelled_image)
 
-	cv2.waitKey(0)
-	cv2.destroyAllWindows()
+	# cv2.waitKey(0)
+	# cv2.destroyAllWindows()
+	
+	time.sleep(2)
+
+	open_gripper(client_id)
+	time.sleep(1)
+	
+	x, y, z = berry_positions_dictionary['Lemon'][0]
+	move_arm_to_target(client_id, berry_detector_handle, x, y, z)
+	time.sleep(5)
+
+	close_gripper(client_id)
+	time.sleep(1)
+	
+	initial_pose_arm(client_id)
+	time.sleep(5)
+
+	open_gripper(client_id)
+	time.sleep(1)
+	
+	print("ABRA_KADABRA")
+
 
 if __name__ == "__main__":
 

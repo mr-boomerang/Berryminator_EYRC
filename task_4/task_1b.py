@@ -217,8 +217,8 @@ def transform_vision_sensor_image(vision_sensor_image, image_resolution):
 	#RGB to BGR
 	transformed_image = transformed_image[..., ::-1]
 	
-	#Flip across X-axis
-	transformed_image = np.flip(transformed_image, 0)
+	#Flip across Y-axis
+	transformed_image = np.flip(transformed_image, 1)
 
 	##################################################
 	
