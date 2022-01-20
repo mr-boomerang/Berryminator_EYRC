@@ -64,32 +64,75 @@ from task_3 import *
 
 
 def open_gripper(client_id):
+	print("open_gripper")
 	command = ["open"]
 	emptybuff = bytearray()
     
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	print(return_code)
 	while return_code != 0:
+		print(return_code)
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
-        
+
+	return return_code
+
 def close_gripper(client_id):
+	print("close_gripper")
 	command = ["close"]
 	emptybuff = bytearray()
     
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
 	while return_code != 0:
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
-        
-def move_arm_to_target(client_id, reference_frame, x, y, z):
+    
+	return return_code
+
+def arm_move_to_target(client_id, reference_frame, x, y, z):
 	command = [reference_frame, x, y, z]
 	emptybuff = bytearray()
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'goal_IK',[],command,[],emptybuff,sim.simx_opmode_blocking)
-	print(return_code)	
+	return return_code
 
-def initial_pose_arm(client_id):
-    emptybuff = bytearray()
-    return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
-    print(return_code)
+def arm_go_to_start_pose(client_id, reference_frame):
+	emptybuff = bytearray()
+	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
+	print(return_code)
+	return return_code
 
+def arm_go_to_rack(client_id, reference_frame):
+	rack_x, rack_y, rack_z = (-0.52, -0.3, -0.2)	
+	return_code = arm_move_to_target(client_id, reference_frame, rack_x, rack_y, rack_z)
+	return return_code
+
+def berry_detection_wrapper(client_id):
+	return_code, berry_detector_handle = sim.simxGetObjectHandle(client_id, 'vision_sensor_2', sim.simx_opmode_blocking)
+	vision_sensor_image, image_resolution, return_code = task_2a.get_vision_sensor_image(client_id, berry_detector_handle)
+	vision_sensor_depth_image, depth_image_resolution, return_code_2 = task_2a.get_vision_sensor_depth_image(client_id, berry_detector_handle)
+	
+	if ((return_code == sim.simx_return_ok) and (return_code_2 == sim.simx_return_ok) and (len(image_resolution) == 2) and (len(depth_image_resolution) == 2) and (len(vision_sensor_image) > 0) and (len(vision_sensor_depth_image) > 0)):
+		print('\nImage captured from Vision Sensor in CoppeliaSim successfully!')
+		transformed_image = task_1b.transform_vision_sensor_image(vision_sensor_image, image_resolution)
+		transformed_depth_image = task_2a.transform_vision_sensor_depth_image(vision_sensor_depth_image, depth_image_resolution)
+
+		if (type(transformed_image) is np.ndarray) and (type(transformed_depth_image) is np.ndarray):
+			berries_dictionary = task_2a.detect_berries(transformed_image, transformed_depth_image)
+			# print("Berries Dictionary = ", berries_dictionary)
+			berry_positions_dictionary = task_2a.detect_berry_positions(berries_dictionary)
+			# print("Berry Positions Dictionary = ",berry_positions_dictionary)
+			for berry_type in berry_positions_dictionary.keys():
+				print(berry_type)
+				for berry in berry_positions_dictionary[berry_type]:
+					print(berry)
+
+			labelled_image = task_2a.get_labeled_image(transformed_image, berries_dictionary, berry_positions_dictionary)
+			
+			# cv2.imshow('transformed image', transformed_image)
+			# cv2.imshow('transformed depth image', transformed_depth_image)
+			# cv2.imshow('labelled image', labelled_image)
+
+	# cv2.waitKey(0)
+	# cv2.destroyAllWindows()
+	return berry_positions_dictionary, berry_detector_handle
 
 ############################# EVAL FUNCTION #############################
 def send_identified_berry_data(client_id,berry_name,x_coor,y_coor,depth):
@@ -181,67 +224,62 @@ def task_4_primary(client_id):
 	
 	target_points = [(4, 3)]
 	task_3_primary(client_id, target_points)
-	# time.sleep(1)
 	
 	wheel_joints = init_setup(client_id)
-	start_x_enc, start_y_enc, start_rot_enc = wrapper_encoders(client_id)
+	_, start_y_enc, _ = wrapper_encoders(client_id)
 	while(1):
 		set_bot_movement(client_id, wheel_joints, 5, 0, 0)
 		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
 		if y_enc - start_y_enc > 0.08:
 			break
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
+
+	berry_positions_dictionary, berry_detector_handle = berry_detection_wrapper(client_id)
+
+	# berry_x, berry_y, berry_z = berry_positions_dictionary['Lemon'][0]
+	# arm_go_to_start_pose(client_id, berry_detector_handle)
+	# time.sleep(1)
+	# open_gripper(client_id)
+	# time.sleep(1)
+	# arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, round(berry_z, 6))
+	# time.sleep(1)
+	# close_gripper(client_id)
 	# time.sleep(5)
-
-
-	return_code, berry_detector_handle = sim.simxGetObjectHandle(client_id, 'vision_sensor_2', sim.simx_opmode_blocking)
-	vision_sensor_image, image_resolution, return_code = task_2a.get_vision_sensor_image(client_id, berry_detector_handle)
-	vision_sensor_depth_image, depth_image_resolution, return_code_2 = task_2a.get_vision_sensor_depth_image(client_id, berry_detector_handle)
 	
-	if ((return_code == sim.simx_return_ok) and (return_code_2 == sim.simx_return_ok) and (len(image_resolution) == 2) and (len(depth_image_resolution) == 2) and (len(vision_sensor_image) > 0) and (len(vision_sensor_depth_image) > 0)):
-		print('\nImage captured from Vision Sensor in CoppeliaSim successfully!')
-		transformed_image = task_1b.transform_vision_sensor_image(vision_sensor_image, image_resolution)
-		transformed_depth_image = task_2a.transform_vision_sensor_depth_image(vision_sensor_depth_image, depth_image_resolution)
+	for berry_type in sorted(berry_positions_dictionary.keys()):
+		if berry_type == 'Blueberry':
+			berry_index = 1
+		elif berry_type == 'Lemon':
+			berry_index = 3
+		elif berry_type == 'Strawberry':
+			berry_index = 1
+		# berry_index = 0
+		berry_x, berry_y, berry_z = berry_positions_dictionary[berry_type][berry_index]
+		
+		send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
 
-		if (type(transformed_image) is np.ndarray) and (type(transformed_depth_image) is np.ndarray):
-			berries_dictionary = task_2a.detect_berries(transformed_image, transformed_depth_image)
-			# print("Berries Dictionary = ", berries_dictionary)
-			berry_positions_dictionary = task_2a.detect_berry_positions(berries_dictionary)
-			# print("Berry Positions Dictionary = ",berry_positions_dictionary)
-			for berry_type in berry_positions_dictionary.keys():
-				print(berry_type)
-				for berry in berry_positions_dictionary[berry_type]:
-					print(berry)
+		open_gripper(client_id)
+		time.sleep(0.5)
+		
+		print("going to berry")
+		print(berry_x, berry_y, berry_z)
+		arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, round(berry_z, 6))
+		time.sleep(1)
 
-			labelled_image = task_2a.get_labeled_image(transformed_image, berries_dictionary, berry_positions_dictionary)
-			
-			# cv2.imshow('transformed image', transformed_image)
-			# cv2.imshow('transformed depth image', transformed_depth_image)
-			# cv2.imshow('labelled image', labelled_image)
+		close_gripper(client_id)
+		time.sleep(0.5)
 
-	# cv2.waitKey(0)
-	# cv2.destroyAllWindows()
-	
-	time.sleep(2)
-
-	open_gripper(client_id)
-	time.sleep(1)
-	
-	x, y, z = berry_positions_dictionary['Lemon'][0]
-	move_arm_to_target(client_id, berry_detector_handle, x, y, z)
-	time.sleep(5)
-
-	close_gripper(client_id)
-	time.sleep(1)
-	
-	initial_pose_arm(client_id)
-	time.sleep(5)
-
-	open_gripper(client_id)
-	time.sleep(1)
-	
-	print("ABRA_KADABRA")
-
+		if berry_type == 'Blueberry':
+			return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+			time.sleep(1)
+		return_code = arm_go_to_rack(client_id, berry_detector_handle)
+		time.sleep(1)
+		
+		open_gripper(client_id)
+		time.sleep(0.5)
+		
+		return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+		time.sleep(0.5)
 
 if __name__ == "__main__":
 
