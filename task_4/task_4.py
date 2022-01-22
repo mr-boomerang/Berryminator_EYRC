@@ -64,20 +64,16 @@ from task_3 import *
 
 
 def open_gripper(client_id):
-	print("open_gripper")
 	command = ["open"]
 	emptybuff = bytearray()
     
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
-	print(return_code)
 	while return_code != 0:
-		print(return_code)
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
 
 	return return_code
 
 def close_gripper(client_id):
-	print("close_gripper")
 	command = ["close"]
 	emptybuff = bytearray()
     
@@ -96,11 +92,10 @@ def arm_move_to_target(client_id, reference_frame, x, y, z):
 def arm_go_to_start_pose(client_id, reference_frame):
 	emptybuff = bytearray()
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	print(return_code)
 	return return_code
 
 def arm_go_to_rack(client_id, reference_frame):
-	rack_x, rack_y, rack_z = (-0.52, -0.3, -0.2)	
+	rack_x, rack_y, rack_z = (-0.6, 0, -0.2)	
 	return_code = arm_move_to_target(client_id, reference_frame, rack_x, rack_y, rack_z)
 	return return_code
 
@@ -118,7 +113,7 @@ def berry_detection_wrapper(client_id):
 			berries_dictionary = task_2a.detect_berries(transformed_image, transformed_depth_image)
 			# print("Berries Dictionary = ", berries_dictionary)
 			berry_positions_dictionary = task_2a.detect_berry_positions(berries_dictionary)
-			# print("Berry Positions Dictionary = ",berry_positions_dictionary)
+			print("Berry Positions Dictionary = ",berry_positions_dictionary)
 			for berry_type in berry_positions_dictionary.keys():
 				print(berry_type)
 				for berry in berry_positions_dictionary[berry_type]:
@@ -128,10 +123,10 @@ def berry_detection_wrapper(client_id):
 			
 			# cv2.imshow('transformed image', transformed_image)
 			# cv2.imshow('transformed depth image', transformed_depth_image)
-			# cv2.imshow('labelled image', labelled_image)
+			cv2.imshow('labelled image', labelled_image)
 
-	# cv2.waitKey(0)
-	# cv2.destroyAllWindows()
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
 	return berry_positions_dictionary, berry_detector_handle
 
 ############################# EVAL FUNCTION #############################
@@ -227,9 +222,11 @@ def task_4_primary(client_id):
 	
 	wheel_joints = init_setup(client_id)
 	_, start_y_enc, _ = wrapper_encoders(client_id)
+
 	while(1):
 		set_bot_movement(client_id, wheel_joints, 5, 0, 0)
 		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
+		print(y_enc - start_y_enc)
 		if y_enc - start_y_enc > 0.08:
 			break
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
@@ -246,14 +243,16 @@ def task_4_primary(client_id):
 	# close_gripper(client_id)
 	# time.sleep(5)
 	
-	for berry_type in sorted(berry_positions_dictionary.keys()):
+	for berry_type in berry_positions_dictionary.keys():
 		if berry_type == 'Blueberry':
 			berry_index = 1
 		elif berry_type == 'Lemon':
 			berry_index = 3
+			continue
 		elif berry_type == 'Strawberry':
-			berry_index = 1
-		# berry_index = 0
+			berry_index = 0
+			continue
+		berry_index = 0
 		berry_x, berry_y, berry_z = berry_positions_dictionary[berry_type][berry_index]
 		
 		send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
@@ -261,22 +260,26 @@ def task_4_primary(client_id):
 		open_gripper(client_id)
 		time.sleep(0.5)
 		
-		print("going to berry")
-		print(berry_x, berry_y, berry_z)
+		# print("going to berry")
+		# print(berry_x, berry_y, berry_z)
 		arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, round(berry_z, 6))
 		time.sleep(1)
 
 		close_gripper(client_id)
-		time.sleep(0.5)
+		time.sleep(1)
 
-		if berry_type == 'Blueberry':
-			return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
-			time.sleep(1)
+		# if berry_type == 'Blueberry':
+		# 	return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+		# 	time.sleep(1)
+
+		return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+		time.sleep(1)
+
 		return_code = arm_go_to_rack(client_id, berry_detector_handle)
 		time.sleep(1)
 		
 		open_gripper(client_id)
-		time.sleep(0.5)
+		time.sleep(1)
 		
 		return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
 		time.sleep(0.5)

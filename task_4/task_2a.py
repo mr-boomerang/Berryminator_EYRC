@@ -328,9 +328,9 @@ def detect_berry_positions(berries_dictionary):
 	for berry_type in berries:
 		for (centroid_x, centroid_y, depth) in berries_dictionary[berry_type]:
 			#Extrapolating Values using np.interp
-			h = np.float32(np.interp(centroid_x, [0, 255], [-0.5, 0.5]))
-			v = np.float32(np.interp(centroid_y, [0, 255], [-0.5, 0.5]))
-			dis = np.float32(np.interp(depth, [0, 1], [0.01, 1.50e+0]))
+			h = np.float32(np.interp(centroid_x, [0, 255], [-0.65, 0.65]))
+			v = np.float32(np.interp(centroid_y, [0, 255], [-0.65, 0.65]))
+			dis = np.float32(np.interp(depth, [0, 1], [0.01, 1.00e+0]))
 			
 			dis += 0.0125	## Adding 0.0125 as the average depth will be (Radius/2) metres nearer to the camera. Radius of each berry is 0.025m. 
 
