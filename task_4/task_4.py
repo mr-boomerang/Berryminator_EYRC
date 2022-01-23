@@ -17,8 +17,8 @@
 '''
 
 
-# Team ID:			[ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:			[ 1707 ]
+# Author List:		[ Parth Shah, Chirag Jain, Shubhankar Riswadkar, Bhavya Vira ]
 # Filename:			task_4.py
 # Functions:		
 # Global variables:	
@@ -68,7 +68,7 @@ def open_gripper(client_id):
 	command = ["open"]
 	emptybuff = bytearray()
     
-	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	return_code = 1
 	while return_code != 0:
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
 
@@ -78,7 +78,7 @@ def close_gripper(client_id):
 	command = ["close"]
 	emptybuff = bytearray()
     
-	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	return_code = 1
 	while return_code != 0:
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
     
@@ -90,7 +90,7 @@ def arm_move_to_target(client_id, reference_frame, x, y, z):
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'goal_IK',[],command,[],emptybuff,sim.simx_opmode_blocking)
 	return return_code
 
-def arm_go_to_start_pose(client_id, reference_frame):
+def arm_go_to_start_pose(client_id):
 	emptybuff = bytearray()
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
 	return return_code
@@ -100,18 +100,12 @@ def arm_go_to_rack(client_id, reference_frame):
 	return_code = arm_move_to_target(client_id, reference_frame, rack_x, rack_y, rack_z)
 	return return_code
 
-def arm_go_to_blue_home(client_id, reference_frame):
-	emptybuff = bytearray()
-	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'blueHome_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	return return_code
-
 def berry_detection_wrapper(client_id):
 	return_code, berry_detector_handle = sim.simxGetObjectHandle(client_id, 'vision_sensor_2', sim.simx_opmode_blocking)
 	vision_sensor_image, image_resolution, return_code = task_2a.get_vision_sensor_image(client_id, berry_detector_handle)
 	vision_sensor_depth_image, depth_image_resolution, return_code_2 = task_2a.get_vision_sensor_depth_image(client_id, berry_detector_handle)
 	
 	if ((return_code == sim.simx_return_ok) and (return_code_2 == sim.simx_return_ok) and (len(image_resolution) == 2) and (len(depth_image_resolution) == 2) and (len(vision_sensor_image) > 0) and (len(vision_sensor_depth_image) > 0)):
-		print('\nImage captured from Vision Sensor in CoppeliaSim successfully!')
 		transformed_image = task_1b.transform_vision_sensor_image(vision_sensor_image, image_resolution)
 		transformed_depth_image = task_2a.transform_vision_sensor_depth_image(vision_sensor_depth_image, depth_image_resolution)
 
@@ -241,10 +235,8 @@ def task_4_primary(client_id):
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
 
 	berry_positions_dictionary, berry_detector_handle = berry_detection_wrapper(client_id)
-
 	berry_index = 0
 	for berry_type in berry_positions_dictionary.keys():
-
 		berry_x, berry_y, berry_z = berry_positions_dictionary[berry_type][berry_index]
 		
 		send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
@@ -261,14 +253,14 @@ def task_4_primary(client_id):
 		if berry_type == 'Blueberry':
 			return_code = arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, 0)
 			time.sleep(1)
-			return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+			return_code = arm_go_to_start_pose(client_id)
 			time.sleep(1)
 		elif berry_type == 'Lemon':
-			return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+			return_code = arm_go_to_start_pose(client_id)
 			time.sleep(1)
 		else:
 			return_code = arm_go_to_rack(client_id, berry_detector_handle)
-			time.sleep(1)
+			time.sleep(0.7)
 
 		return_code = arm_go_to_rack(client_id, berry_detector_handle)
 		time.sleep(0.5)
@@ -276,7 +268,7 @@ def task_4_primary(client_id):
 		open_gripper(client_id)
 		time.sleep(0.5)
 		
-		return_code = arm_go_to_start_pose(client_id, berry_detector_handle)
+		return_code = arm_go_to_start_pose(client_id)
 		time.sleep(0.5)
 
 if __name__ == "__main__":
