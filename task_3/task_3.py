@@ -39,7 +39,7 @@ import math
 import time
 import sys
 from pyzbar.pyzbar import decode
-
+import pprint
 ##############################################################
 
 
@@ -383,7 +383,11 @@ def detect_qr_codes(transformed_image):
 		qr_codes_data.append(data)
 		x = np.float32(np.interp(center_x, [0, 511], [-0.15, 0.15]))
 		y = np.float32(np.interp(center_y, [0, 511], [-0.15, 0.15]))
-		qr_codes_position.append((x, y))
+
+		polygon = qr_code.polygon
+		theta = math.atan2(polygon[1].y - polygon[0].y, polygon[1].x - polygon[0].x)
+
+		qr_codes_position.append((x, y, theta))
 	##################################################
 	
 	return qr_codes_data, qr_codes_position
@@ -550,7 +554,7 @@ def nav_logic(client_id, wheel_joints, path):
 			v_x = 0
 			v_y = 0
 			if qr_codes_data:
-				x_qr, y_qr = qr_codes_position[0]
+				x_qr, y_qr, _ = qr_codes_position[0]
 				# P-controller to correct deviation in the direction perpendicular to the robot's movement
 				# The controller takes the position of QR code as the feedback
 				v_x = k_p * x_qr
@@ -594,11 +598,15 @@ def nav_logic(client_id, wheel_joints, path):
 				#If QR code not found, keep moving.
 				continue
 			
-			x_qr, y_qr = qr_codes_position[0]
+			x_qr, y_qr, theta_qr = qr_codes_position[0]
 
+			
 			# P-controller to correct deviation of Robot in X and Y direction from the center of QR code.	
 			v_x = k_p * x_qr
 			v_y = k_p * y_qr
+			k_p_rot_qr = 15
+			velocity_rot = k_p_rot_qr * (theta_qr)
+			print(theta_qr, velocity_rot)
 			set_bot_movement(client_id, wheel_joints, v_y, v_x, velocity_rot)
 			
 			# Keeping a window of 0.02m from center
@@ -617,6 +625,125 @@ def nav_logic(client_id, wheel_joints, path):
 				# print(local_source, " --- ", local_target)
 				mode = 1
 
+def generate_map(entry_points):
+	# Creating a Map of the QR_Plane
+	grid = {}
+
+	# Each vertex (QR) has an edge to every other vertex (QR) in the same row or column
+	for x in range(0, 9):
+		for y in range(0, 12):
+			grid[(x, y)] = []
+			for i in range(0, 9):
+				if i != x:
+					grid[(x, y)].append((i, y))
+			for j in range(0, 12):
+				if j != y:
+					grid[(x, y)].append((x, j))
+
+	zones ={'zone_1': [(2, 0), (2, 1), (2, 2),
+					   (1, 0), (1, 1), (1, 2),
+					   (0, 0), (0, 1), (0, 2)],
+			'zone_2': [(2, 6), (2, 7), (2, 8),
+					   (1, 6), (1, 7), (1, 8),
+					   (0, 6), (0, 7), (0, 8)],
+			'zone_3': [(8, 0), (8, 1), (8, 2),
+					   (7, 0), (7, 1), (7, 2),
+					   (6, 0), (6, 1), (6, 2)],
+			'zone_4': [(8, 6), (8, 7), (8, 8),
+					   (7, 6), (7, 7), (7, 8),
+					   (6, 6), (6, 7), (6, 8)]
+			}
+
+	for zone_name in zones.keys():
+		for barcode in zones[zone_name]:
+			for x in range(0, 9):
+				for y in range(3, 6):
+					if barcode in grid[(x, y)]:
+						grid[(x, y)].remove(barcode)
+					if (x, y) in grid[barcode]:
+						grid[barcode].remove((x, y))			
+			for x in range(3, 6):
+				for y in range(0, 12):
+					if barcode in grid[(x, y)]:
+						grid[(x, y)].remove(barcode)
+					if (x, y) in grid[barcode]:
+						grid[barcode].remove((x, y))
+			for x in range(0, 9):
+				for y in range(9, 12):
+					if barcode in grid[(x, y)]:
+						grid[(x, y)].remove(barcode)
+					if (x, y) in grid[barcode]:
+						grid[barcode].remove((x, y))	
+
+	for x in range(0, 9):
+		for y in range(9, 12):
+			for x1 in range(0, 3):
+				for y1 in range(3, 6):
+					if (x1, y1) in grid[(x, y)]:
+						grid[(x, y)].remove((x1, y1))
+					if (x, y) in grid[(x1, y1)]:
+						grid[(x1, y1)].remove((x, y))
+			for x1 in range(6, 9):
+				for y1 in range(3, 6):
+					if (x1, y1) in grid[(x, y)]:
+						grid[(x, y)].remove((x1, y1))
+					if (x, y) in grid[(x1, y1)]:
+						grid[(x1, y1)].remove((x, y))
+
+	for zone_name in zones.keys():
+		zones_minus_zone = zones.copy()
+		zones_minus_zone.pop(zone_name)
+		for zone_name2 in zones_minus_zone.keys():
+			for barcode in zones_minus_zone[zone_name2]:
+				for isolate_barcode in zones[zone_name]:
+					if barcode in grid[isolate_barcode]:
+						grid[isolate_barcode].remove(barcode)
+					if isolate_barcode in grid[barcode]:
+						grid[barcode].remove(isolate_barcode)
+
+	# print(grid)	
+	# pprint.pprint(grid)
+
+	for entry in entry_points:
+		if entry in [(0, 3), (1, 3), (2, 3), (6, 3), (7, 3), (8, 3)]:
+			entry_x, entry_y = entry
+			for i in range(3):
+				for j in range(1, 4):
+					grid[(entry_x, entry_y - j)].append((entry_x, entry_y + i))
+					grid[(entry_x, entry_y + i)].append((entry_x, entry_y - j ))
+		if entry in [(0, 5), (1, 5), (2, 5), (6, 5), (7, 5), (8, 5)]:
+			entry_x, entry_y = entry
+			for i in range(3):
+				for j in range(1, 4):
+					grid[(entry_x, entry_y + j)].append((entry_x, entry_y - i))
+					grid[(entry_x, entry_y - i)].append((entry_x, entry_y + j))
+		if entry in [(3, 8), 
+					 (3, 7),
+					 (3, 6),
+					 (3, 2), 
+					 (3, 1),
+					 (3, 0),
+					]:
+			entry_x, entry_y = entry
+			for i in range(3):
+				for j in range(1, 4):
+					grid[(entry_x - j, entry_y)].append((entry_x + i, entry_y))
+					grid[(entry_x + i, entry_y)].append((entry_x - j, entry_y))
+		if entry in [(5, 8), 
+					 (5, 7),
+					 (5, 6),
+					 (5, 2), 
+					 (5, 1),
+					 (5, 0),
+					]:
+			entry_x, entry_y = entry
+			for i in range(3):
+				for j in range(1, 4):
+					grid[(entry_x + j, entry_y)].append((entry_x - i, entry_y))
+					grid[(entry_x - i, entry_y)].append((entry_x + j, entry_y))
+
+	return grid
+
 def shortest_path(source, destination):
 	"""
 	Purpose:
@@ -624,21 +751,7 @@ def shortest_path(source, destination):
 	This function should be used to find the shortest path on the given floor between the destination and source co-ordinates.
 	"""
 	# Creating a Map of the QR_Plane
-	grid = {}
-	e = 0 
-
-	# Each vertex (QR) has an edge to every other vertex (QR) in the same row or column
-	for x in range(0, 9):
-		for y in range(0, 13):
-			grid[(x, y)] = []
-			for i in range(0, 9):
-				if i != x:
-					grid[(x, y)].append((i, y))
-					e += 1
-			for j in range(0, 13):
-				if j != y:
-					grid[(x, y)].append((x, j))
-					e += 1
+	grid = generate_map([(2,5), (5,8), (5,2), (3,0)])
 
 	visited ={}
 	distance = {}
@@ -727,7 +840,12 @@ def task_3_primary(client_id, target_points):
 	
 	# print("............................")
 	
-	global_source = (0, 0) # The robot will always start form (0, 0)
+	global_source = (4, 4) # The robot will always start form (0, 0)
+	print([(2,5), (5,8), (5,2), (3,0)])
+	path = shortest_path(global_source, (1, 7)) #Finding the shortest path to the target	
+	print(path)	
+	# generate_map([])
+	return
 	#Iterate the list of target_points
 	for global_target in target_points:
 		path = shortest_path(global_source, global_target) #Finding the shortest path to the target	
