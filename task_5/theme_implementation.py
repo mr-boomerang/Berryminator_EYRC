@@ -31,8 +31,6 @@
 ## modules for this task                                    ##
 ##############################################################
 
-import re
-from anyio import sleep
 import cv2
 from cv2 import rotate
 import numpy as np
@@ -70,12 +68,14 @@ import task_2a
 from task_3 import *
 from task_4 import *
 
+
 bm_map = None
 requirements = {}
 
-def rotate_robot(client_id, wheel_joints, angle):
+def rotate_robot(client_id, target_angle):
+	wheel_joints = init_setup(client_id)
 	_, start_y_enc, rot_enc = wrapper_encoders(client_id)
-	rot_enc = rot_enc * 180 / 0.5
+	rot_enc = rot_enc * 180 * 4
 	start_rot = rot_enc
 	
 	err = 0
@@ -84,52 +84,58 @@ def rotate_robot(client_id, wheel_joints, angle):
 
 	P, I, D = (0, 0, 0)
 	delta_t = 0.01
-	k_p = -0.02
+	k_p = -0.2
 	k_i = 0
 	k_d = 0
 	while(1):
 		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
-		# rot_enc = rot_enc * 180 / 0.5
-		total_rot = rot_enc - start_rot
+		rot_enc = rot_enc * 180 * 4
+		
+		if (abs(rot_enc - target_angle) < 2):
+			break
 
-		err = total_rot - angle	
+		err = rot_enc - target_angle	
 		cum_err += err
 		P = (err * k_p)
 		D = (((err - prev_err) * k_d) / delta_t)
 		I = (k_i * cum_err)
 		rotation_cmd = P + I + D
 
-		print(P, I, D)
+		print(rot_enc, rotation_cmd)
 		set_bot_movement(client_id, wheel_joints, 0, 0, rotation_cmd)
-	
-		if abs(total_rot) > 0.25:
-			break
+		
 		prev_err = err
-		# sleep(delta_t)
+
+	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
 
 def go_to_rack(client_id, rack_id):
 	target_points = None
 	if rack_id == 1:
-		target_points = [(1, 10)]
+		target_points = [(2, 11)]
 	elif rack_id == 2:
-		target_points = [(7, 10)]
+		target_points = [(8, 11)]
 
 	current_position = get_current_position(client_id)
-	current_position = tuple(map(int, current_position.replace('(','').replace(')','').split(',')))
-
+	while(current_position == None):
+		current_position = get_current_position(client_id)
 	task_3_primary(client_id, current_position, target_points, bm_map)
+
+	if rack_id == 1:
+		open_box1(client_id)
+	elif rack_id == 2:
+		open_box2(client_id)
 
 def read_config(filename):
 	config_file = open(filename)
 	theme_config = json.load(config_file)
-	print(theme_config)
+	# print(theme_config)
 	
 	theme_requirements = {}
 	for key in list(theme_config.keys()):
 		req = theme_config[key]
 		req = req.split("_")
 		
-		print(key)
+		# print(key)
 		berry_type = None
 		if key == "B":
 			berry_type = "Blueberry"
@@ -158,18 +164,20 @@ def pluck_from_zone(client_id, zone_id):
 	target_points = None
 	if zone_id == 1:
 		target_points = [(7, 1)]
-		rotate_angle = 0
+		rotate_angle = 192
 	elif zone_id == 2:
 		target_points = [(7, 7)]
-		rotate_angle = 90
+		rotate_angle = 92
 	elif zone_id == 3:
 		target_points = [(1, 7)]
-		rotate_angle = 180
+		rotate_angle = 0
 	elif zone_id == 4:
 		target_points = [(1, 1)]
-		rotate_angle = -90
-	
+		rotate_angle = -92
+
 	current_position = get_current_position(client_id)
+	while(current_position == None):
+		current_position = get_current_position(client_id)
 
 	task_3_primary(client_id, current_position, target_points, bm_map)
 
@@ -183,6 +191,7 @@ def pluck_from_zone(client_id, zone_id):
 	# while req not satisfied or no more necessary berries
 
 	# rotate reverse
+	rotate_robot(client_id, rotate_angle)
 
 	global requirements
 	for berry_type in list(requirements.keys()):
@@ -190,6 +199,7 @@ def pluck_from_zone(client_id, zone_id):
 			continue
 		plucked = 0
 		
+		deposit_box = requirements[berry_type]["deposit_box"]
 		num_of_berries = requirements[berry_type]["number_of_berries"]
 		for i in range(num_of_berries):
 			berry_positions_dictionary, berry_detector_handle = berry_detection_wrapper(client_id)
@@ -198,11 +208,13 @@ def pluck_from_zone(client_id, zone_id):
 				break
 
 			coordinates = berry_positions_dictionary[berry_type][0]
-			pluck_and_deposit(client_id, berry_detector_handle, coordinates)
+			pluck_and_deposit(client_id, berry_detector_handle, coordinates, deposit_box)
 			plucked += 1
 
 		requirements[berry_type]["number_of_berries"] -= plucked
 		
+	rotate_robot(client_id, 0)
+
 
 
 	berry_positions_dictionary, berry_detector_handle = berry_detection_wrapper(client_id)
@@ -243,15 +255,19 @@ def theme_implementation_primary(client_id, rooms_entry):
 
 	global requirements
 	requirements = read_config("Theme_Config.json")
-	print(requirements)
+	# print(requirements)
 
-	# pluck_from_zone(client_id, 1)
-	# pluck_from_zone(client_id, 2)
-	pluck_from_zone(client_id, 3)
-	# pluck_from_zone(client_id, 4)
+	for i in [3, 2, 1, 4]:
+		if plucking_completed():
+			break
+		pluck_from_zone(client_id, i)
 	
-	# go_to_rack(client_id, 1)
-	# go_to_rack(client_id, 2)
+	# pluck_from_zone(client_id, 4)
+	# pluck_from_zone(client_id, 2)	
+	# pluck_from_zone(client_id, 1)
+	
+	go_to_rack(client_id, 1)
+	go_to_rack(client_id, 2)
 
 	# time.sleep(3)
 	# _, start_y_enc, rot_enc = wrapper_encoders(client_id)
@@ -283,7 +299,9 @@ def theme_implementation_primary(client_id, rooms_entry):
 if __name__ == "__main__":
 
 	# Room entry co-ordinate
-	rooms_entry = [(2,5), (5,8), (5,2), (3,0)]     # example list of tuples
+	# rooms_entry = [(0, 3), (2, 5), (5, 2), (5, 8)]     # example list of tuples
+	# rooms_entry = [(2, 3), (3, 6), (8, 3), (5, 8)]     # example list of tuples
+	rooms_entry = [(3, 6), (6, 5), (6, 3), (2, 3)]     # example list of tuples
 
 	###############################################################
 	## You are NOT allowed to make any changes in the code below ##

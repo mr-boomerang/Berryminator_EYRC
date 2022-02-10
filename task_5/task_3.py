@@ -62,6 +62,7 @@ except Exception:
 ## Please add proper comments to ensure that your code is   ##
 ## readable and easy to understand.                         ##
 ##############################################################
+import pprint
 
 def get_current_position(client_id):
 	qr_codes_data, qr_codes_position = wrapper_qr_code(client_id)
@@ -582,10 +583,16 @@ def nav_logic(client_id, wheel_joints, path):
 						err_y = 0.10
 					elif(local_target[1] in [3]):
 						err_x = 0
-						err_y = -0.13
+						err_y = -0.15
 					elif(local_target[1] in [5]):
 						err_x = 0
 						err_y = 0.14
+					elif(local_target[1] in [11]):
+						err_x = 0
+						err_y = -0.15
+					elif(local_target[1] in [9]):
+						err_x = 0
+						err_y = -0.2
 				elif (direction == "up" or direction == "down"):
 					if (local_target[0] in [2, 5, 8]):
 						err_x = -0.12
@@ -602,6 +609,7 @@ def nav_logic(client_id, wheel_joints, path):
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
 					speed = 4
+					# speed = speed
 				velocity_y = speed
 				velocity_x = v_x
 			elif direction == 'down':
@@ -609,6 +617,7 @@ def nav_logic(client_id, wheel_joints, path):
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
 					speed = 4
+					# speed = speed
 				velocity_y = -speed
 				velocity_x = v_x
 			elif direction == 'left':
@@ -616,6 +625,7 @@ def nav_logic(client_id, wheel_joints, path):
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
 					speed = 4
+					# speed = speed
 				velocity_y = v_y
 				velocity_x = speed
 			elif direction == 'right':
@@ -623,6 +633,7 @@ def nav_logic(client_id, wheel_joints, path):
 					# Reducing speed, as the next QR code is target.
 					# At high speed, the camera is unable to accurately capture the QR code at current settings. Hence decreasing speed.
 					speed = 4
+					# speed = speed
 				velocity_y = v_y
 				velocity_x = -speed
 			set_bot_movement(client_id, wheel_joints, velocity_y, velocity_x, velocity_rot)
@@ -646,14 +657,21 @@ def nav_logic(client_id, wheel_joints, path):
 			if (local_target[1] in [0, 6]):
 				err_y = -0.12
 			if (local_target[1] in [3]):
-				err_y = -0.13
+				err_y = -0.15
 			if (local_target[1] in [5]):
 				err_y = 0.14
+			if (local_target[1] in [11]):
+				err_y = -0.15
 			if (local_target[0] in [2, 5, 8]):
 				err_x = -0.12
 			if (local_target[0] in [3]):
 				err_x = 0.12
-			
+			if (local_target[1] in [9]):
+				err_y = -0.2
+			if (local_target == (8, 11)):
+				err_x = -0.12
+				err_y = 0.02
+
 			x_qr -= err_x
 			y_qr -= err_y
 			# P-controller to correct deviation of Robot in X and Y direction from the center of QR code.	
@@ -671,7 +689,7 @@ def nav_logic(client_id, wheel_joints, path):
 				else:
 					v_y = 3
 
-			print(v_x, v_y)
+			# print(v_x, v_y)
 			set_bot_movement(client_id, wheel_joints, v_y, v_x, velocity_rot)
 			
 			# Keeping a window of 0.02m from center
@@ -766,8 +784,17 @@ def generate_map(rooms_entry):
 						map[isolate_barcode].remove(barcode)
 					if isolate_barcode in map[barcode]:
 						map[barcode].remove(isolate_barcode)
+	
+	for x in range(0, 9):
+		for x2 in [0, 1, 7, 8]:
+			if (x2, 11) in map[(x, 11)]:
+				map[(x, 11)].remove((x2, 11))
+				
+		# map[(x, 11)].remove((x, 1))
+		# map[(x, 11)].remove((x, 7))
+		# map[(x, 11)].remove((x, 8))
 
-	# print(map)	
+	# # print(map)	
 	# pprint.pprint(map)
 
 	for entry in rooms_entry:
@@ -808,6 +835,8 @@ def generate_map(rooms_entry):
 					map[(entry_x + j, entry_y)].append((entry_x - i, entry_y))
 					map[(entry_x - i, entry_y)].append((entry_x + j, entry_y))
 
+	pprint.pprint(map)
+
 	return map
 
 
@@ -842,7 +871,7 @@ def shortest_path(source, destination, arena_map):
 		# Get all neighbors of a vertex and dequeue it
 		u = queue[0]
 		queue.pop(0)
-
+		# print(u)
 		for v in grid[u]:
 			# If a adjacent has not been visited, 
             # then mark it visited and enqueue it
@@ -861,6 +890,9 @@ def shortest_path(source, destination, arena_map):
 		if reached:
 			break
 	
+	print("""""""")
+	pprint.pprint(predecessor)
+	pprint.pprint(distance)
 	# Now we have established Predecessors of vertexes if traversed from source,
 	# Crawling backwards to find path
 	path = []

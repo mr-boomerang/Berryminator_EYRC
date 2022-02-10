@@ -63,34 +63,6 @@ import task_1b
 import task_2a
 from task_3 import *
 
-def wait_for_gripper_completion(client_id, command):
-	emptybuff = bytearray()
-	return_code, status, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'check_status',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	# print(status)
-	succes_code = 0
-	if command == ["close"]:
-		succes_code = 1
-	elif command == ["open"]:
-		succes_code = 2
-
-	while(status[0] != succes_code):
-		# print("Waiting for completion - ", status)
-		return_code, status, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'check_status',[],[],[],emptybuff,sim.simx_opmode_blocking)	
-	# print("Completed")
-
-def wait_for_ik_completion(client_id):
-	emptybuff = bytearray()
-	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_ik',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	while(still_error[0]):
-		# print("Waiting for completion")
-		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_ik',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	# print("Completed")	
-
-def wait_for_fk_completion(client_id):
-	emptybuff = bytearray()
-	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_fk',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	while(still_error[0]):
-		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_fk',[],[],[],emptybuff,sim.simx_opmode_blocking)
 
 def open_gripper(client_id):
 	command = ["open"]
@@ -99,8 +71,8 @@ def open_gripper(client_id):
 	return_code = 1
 	while return_code != 0:
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
-	wait_for_gripper_completion(client_id, command)
-	
+	call_gripper_status(client_id,2)
+	return return_code
 
 def close_gripper(client_id):
 	command = ["close"]
@@ -109,80 +81,60 @@ def close_gripper(client_id):
 	return_code = 1
 	while return_code != 0:
 		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'open_close',[],[],command,emptybuff,sim.simx_opmode_blocking)
-    
-	wait_for_gripper_completion(client_id, command)
+	call_gripper_status(client_id,1)
+	return return_code
 
+def call_gripper_status(client_id,code):
+	emptybuff = bytearray()
+	return_code, status, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'check_status',[],[],[],emptybuff,sim.simx_opmode_blocking)
+	print(status)
+	while(status[0] != code ):
+		return_code, status, _, _, _ = sim.simxCallScriptFunction(client_id,'gripper',sim.sim_scripttype_childscript,'check_status',[],[],[],emptybuff,sim.simx_opmode_blocking)	
 
 def arm_move_to_target(client_id, reference_frame, x, y, z):
 	command = [reference_frame, x, y, z]
 	emptybuff = bytearray()
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'goal_IK',[],command,[],emptybuff,sim.simx_opmode_blocking)
-	wait_for_ik_completion(client_id)
+	call_check_ik(client_id)
+	return return_code
 
 def arm_go_to_start_pose(client_id):
 	emptybuff = bytearray()
 	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'home_FK',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	wait_for_fk_completion(client_id)
-
-def arm_go_to_rack(client_id, reference_frame):
-	rack_x, rack_y, rack_z = (-0.5, 0, -0.2)	
-	arm_move_to_target(client_id, reference_frame, rack_x, rack_y, rack_z)
-
-def open_box1(client_id):
-	command = ["open"]
-	emptybuff = bytearray()
-	return_code = 1
-	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
-	return return_code	
-
-def close_box1(client_id):
-	command = ["close"]
-	emptybuff = bytearray()
-	return_code = 1
-	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
+	call_check_fk(client_id)
 	return return_code
 
-def open_box2(client_id):
-	command = ["open"]
+def arm_go_to_drop_pos(client_id):
 	emptybuff = bytearray()
-	return_code = 1
-	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
-	return return_code		
+	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'drop_FK1',[],[],[],emptybuff,sim.simx_opmode_blocking)
+	call_check_drop_fk(client_id)
+	return return_code	
 
-def close_box2(client_id):
-	command = ["close"]
+def call_check_ik(client_id):
 	emptybuff = bytearray()
-	return_code = 1
-	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
-	return return_code		
+	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_ik',[],[],[],emptybuff,sim.simx_opmode_blocking)
+	while(still_error[0]):
+		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_ik',[],[],[],emptybuff,sim.simx_opmode_blocking)
 
-def call_check_drop_fk1(client_id):
+def call_check_fk(client_id):
+	emptybuff = bytearray()
+	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_fk',[],[],[],emptybuff,sim.simx_opmode_blocking)
+	while(still_error[0]):
+		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_fk',[],[],[],emptybuff,sim.simx_opmode_blocking)
+
+def call_check_drop_fk(client_id):
 	emptybuff = bytearray()
 	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_drop_fk1',[],[],[],emptybuff,sim.simx_opmode_blocking)
 	while(still_error[0]):
 		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_drop_fk1',[],[],[],emptybuff,sim.simx_opmode_blocking)
 
-def call_check_drop_fk2(client_id):
-	emptybuff = bytearray()
-	return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_drop_fk2',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	while(still_error[0]):
-		return_code, still_error, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'check_drop_fk2',[],[],[],emptybuff,sim.simx_opmode_blocking)
 
-def arm_go_to_drop_pos1(client_id):
-	emptybuff = bytearray()
-	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'drop_FK1',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	call_check_drop_fk1(client_id)
-	return return_code	
 
-def arm_go_to_drop_pos2(client_id):
-	emptybuff = bytearray()
-	return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'robotic_arm',sim.sim_scripttype_childscript,'drop_FK2',[],[],[],emptybuff,sim.simx_opmode_blocking)
-	call_check_drop_fk2(client_id)
-	return return_code	
+def arm_go_to_rack(client_id, reference_frame):
+	#rack_x, rack_y, rack_z = (-0.5, 0, -0.2)	
+	rack_x, rack_y, rack_z = (-0.025605,-0.3151 ,-0.17696)	
+	return_code = arm_move_to_target(client_id, reference_frame, rack_x, rack_y, rack_z)
+	return return_code
 
 def berry_detection_wrapper(client_id):
 	return_code, berry_detector_handle = sim.simxGetObjectHandle(client_id, 'vision_sensor_2', sim.simx_opmode_blocking)
@@ -277,48 +229,6 @@ def send_identified_berry_data(client_id,berry_name,x_coor,y_coor,depth):
 	
 	##################################################
 
-def pluck_and_deposit(client_id, reference_frame, coordinates, deposit_box):
-	berry_x, berry_y, berry_z = coordinates
-
-	# print(berry_x, berry_y, berry_z)
-
-	open_gripper(client_id)
-	# time.sleep(0.5)
-	
-	arm_move_to_target(client_id, reference_frame, berry_x, berry_y, round(berry_z, 6))
-	# time.sleep(1)
-
-	close_gripper(client_id)
-	# time.sleep(0.5)
-
-	berry_type = 'Lemon'
-	if berry_type == 'Blueberry':
-		arm_move_to_target(client_id, reference_frame, berry_x, berry_y, 0)
-		# time.sleep(1)
-		arm_go_to_start_pose(client_id)
-		# time.sleep(1)
-	elif berry_type == 'Lemon':
-		arm_go_to_start_pose(client_id)
-		# time.sleep(1)
-	else:
-		arm_go_to_rack(client_id, reference_frame)
-		# time.sleep(0.7)
-
-	# arm_go_to_rack(client_id, reference_frame)
-	if deposit_box == 1:
-		return_code = arm_go_to_drop_pos1(client_id)
-	elif deposit_box == 2:
-		return_code = arm_go_to_drop_pos2(client_id)
-
-	# time.sleep(0.5)
-	
-	open_gripper(client_id)
-	# 	time.sleep(0.5)
-	
-	return_code = arm_go_to_start_pose(client_id)
-	time.sleep(0.5)
-
-
 ##############################################################
 
 
@@ -342,22 +252,22 @@ def task_4_primary(client_id):
 	---
 	task_4_primary(client_id)
 	
-	"""
+	#"""
 	wheel_joints = init_setup(client_id)
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-
-	# arm_go_to_rack(client_id, None)
-	# return 
-
-	target_points = [(4, 3)]
-	task_3_primary(client_id, target_points)
-	
-	_, start_y_enc, _ = wrapper_encoders(client_id)
-	while(1):
-		set_bot_movement(client_id, wheel_joints, 5, 0, 0)
-		x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
-		if y_enc - start_y_enc > 0.08:
-			break
+#
+	## arm_go_to_rack(client_id, None)
+	## return 
+#
+	#target_points = [(4, 3)]
+	#task_3_primary(client_id, target_points)
+	#
+	#_, start_y_enc, _ = wrapper_encoders(client_id)
+	#while(1):
+	#	set_bot_movement(client_id, wheel_joints, 5, 0, 0)
+	#	x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
+	#	if y_enc - start_y_enc > 0.08:
+	#		break
 	set_bot_movement(client_id, wheel_joints, 0, 0, 0)
 
 	berry_positions_dictionary, berry_detector_handle = berry_detection_wrapper(client_id)
@@ -365,37 +275,33 @@ def task_4_primary(client_id):
 	for berry_type in berry_positions_dictionary.keys():
 		berry_x, berry_y, berry_z = berry_positions_dictionary[berry_type][berry_index]
 		
-		send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
+		#send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
 
 		open_gripper(client_id)
-		time.sleep(0.5)
+		#time.sleep(0.5)
 		
 		arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, round(berry_z, 6))
-		time.sleep(1)
 
 		close_gripper(client_id)
-		time.sleep(0.5)
+		#time.sleep(0.5)
 
 		if berry_type == 'Blueberry':
 			return_code = arm_move_to_target(client_id, berry_detector_handle, berry_x, berry_y, 0)
-			time.sleep(1)
 			return_code = arm_go_to_start_pose(client_id)
-			time.sleep(1)
+			
 		elif berry_type == 'Lemon':
 			return_code = arm_go_to_start_pose(client_id)
-			time.sleep(1)
+			
 		else:
-			return_code = arm_go_to_rack(client_id, berry_detector_handle)
-			time.sleep(0.7)
+			#return_code = arm_go_to_rack(client_id, berry_detector_handle)
+			return_code = arm_go_to_start_pose(client_id)
 
-		return_code = arm_go_to_rack(client_id, berry_detector_handle)
-		time.sleep(0.5)
-		
+		#return_code = arm_go_to_rack(client_id, berry_detector_handle)
+		return_code = arm_go_to_drop_pos(client_id)
 		open_gripper(client_id)
-		time.sleep(0.5)
+		#time.sleep(0.5)
 		
 		return_code = arm_go_to_start_pose(client_id)
-		time.sleep(0.5)
 
 if __name__ == "__main__":
 
