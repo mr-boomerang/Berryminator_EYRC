@@ -62,7 +62,7 @@ except Exception:
 ## Please add proper comments to ensure that your code is   ##
 ## readable and easy to understand.                         ##
 ##############################################################
-import pprint
+# import pprint
 
 def get_current_position(client_id):
 	qr_codes_data, qr_codes_position = wrapper_qr_code(client_id)
@@ -671,6 +671,12 @@ def nav_logic(client_id, wheel_joints, path):
 			if (local_target == (8, 11)):
 				err_x = -0.12
 				err_y = 0.02
+			if (local_target == (7, 7)):
+				err_x = -0.05
+				err_y = 0
+			if (local_target == (1, 1)):
+				err_x = 0.05
+				err_y = 0
 
 			x_qr -= err_x
 			y_qr -= err_y
@@ -835,7 +841,7 @@ def generate_map(rooms_entry):
 					map[(entry_x + j, entry_y)].append((entry_x - i, entry_y))
 					map[(entry_x - i, entry_y)].append((entry_x + j, entry_y))
 
-	pprint.pprint(map)
+	# pprint.pprint(map)
 
 	return map
 
@@ -890,9 +896,9 @@ def shortest_path(source, destination, arena_map):
 		if reached:
 			break
 	
-	print("""""""")
-	pprint.pprint(predecessor)
-	pprint.pprint(distance)
+	# print("""""""")
+	# pprint.pprint(predecessor)
+	# pprint.pprint(distance)
 	# Now we have established Predecessors of vertexes if traversed from source,
 	# Crawling backwards to find path
 	path = []
@@ -945,7 +951,7 @@ def task_3_primary(client_id, start_point, target_points, arena_map):
 		if global_source == global_target:
 			continue
 		path = shortest_path(global_source, global_target, arena_map) #Finding the shortest path to the target	
-		print(path)
+		# print(path)
 		nav_logic(client_id, wheel_joints, path) # Traverse the Shortest Path
 		global_source = global_target # After reaching the target, target becomes source
 	
