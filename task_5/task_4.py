@@ -206,76 +206,13 @@ def berry_detection_wrapper(client_id):
 	# cv2.destroyAllWindows()
 	berry_positions_dictionary['Strawberry'] = sorted(berry_positions_dictionary['Strawberry'], key=calculate_r)
 	berry_positions_dictionary['Lemon'] = sorted(berry_positions_dictionary['Lemon'], key=calculate_r)
-	berry_positions_dictionary['Blueberry'] = sorted(berry_positions_dictionary['Blueberry'], key=calculate_r)
+	berry_positions_dictionary['Blueberry'] = sorted(berry_positions_dictionary['Blueberry'], key=calculate_r, reverse=True)
 
 	return berry_positions_dictionary, berry_detector_handle
 
 def calculate_r(position):
 	r = math.sqrt((position[0] ** 2) + (position[1] ** 2) + (position[2] ** 2))
 	return r
-
-############################# EVAL FUNCTION #############################
-def send_identified_berry_data(client_id,berry_name,x_coor,y_coor,depth):
-	"""
-	Purpose:
-	---
-	Teams should call this function as soon as they identify a berry to pluck. This function should be called only when running via executable.
-	
-	NOTE: 
-	1. 	Correct Pluck marks will only be awarded if the team plucks the last detected berry. 
-		Hence before plucking, the correct berry should be identified and sent via this function.
-
-	2.	Accuracy of detection should be +-0.025m.
-
-	Input Arguments:
-	---
-	`client_id` 	:  [ integer ]
-		the client_id generated from start connection remote API, it should be stored in a global variable
-
-	'berry_name'		:	[ string ]
-			name of the detected berry.
-
-	'x_coor'			:	[ float ]
-			x-coordinate of the centroid of the detected berry.
-
-	'y_coor'			:	[ float ]
-			y-coordinate of the centroid of the detected berry.
-
-	'depth'			:	[ float ]
-			z-coordinate of the centroid of the detected berry.
-
-	Returns:
-	---
-	`return_code`		:	[ integer ]
-			A remote API function return code
-			https://www.coppeliarobotics.com/helpFiles/en/remoteApiConstants.htm#functionErrorCodes
-
-	Example call:
-	---
-	return_code=send_identified_berry_data(berry_name,x_coor,y_coor)
-	
-	"""
-	##################################################
-	## You are NOT allowed to make any changes in the code below. ##
-	emptybuff = bytearray()
-
-	if(type(berry_name)!=str):
-		berry_name=str(berry_name)
-
-	if(type(x_coor)!=float):
-		x_coor=float(x_coor)
-
-	if(type(y_coor)!=float):
-		y_coor=float(y_coor)	
-	
-	if(type(depth)!=float):
-		depth=float(depth)
-	
-	data_to_send=[berry_name,str(x_coor),str(y_coor),str(depth)]					
-	return_code,outints,oufloats,outstring,outbuffer= sim.simxCallScriptFunction(client_id,'eval_bm',sim.sim_scripttype_childscript,'detected_berry_by_team',[],[],data_to_send,emptybuff,sim.simx_opmode_blocking)
-	return return_code
-	
-	##################################################
 
 def pluck_and_deposit(client_id, reference_frame, coordinates, deposit_box):
 	berry_x, berry_y, berry_z = coordinates
@@ -365,7 +302,6 @@ def task_4_primary(client_id):
 	for berry_type in berry_positions_dictionary.keys():
 		berry_x, berry_y, berry_z = berry_positions_dictionary[berry_type][berry_index]
 		
-		send_identified_berry_data(client_id, berry_type, berry_x, berry_y, berry_z)
 
 		open_gripper(client_id)
 		time.sleep(0.5)

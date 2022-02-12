@@ -592,7 +592,7 @@ def nav_logic(client_id, wheel_joints, path):
 						err_y = -0.15
 					elif(local_target[1] in [9]):
 						err_x = 0
-						err_y = -0.2
+						err_y = -0.17
 				elif (direction == "up" or direction == "down"):
 					if (local_target[0] in [2, 5, 8]):
 						err_x = -0.12
@@ -670,10 +670,10 @@ def nav_logic(client_id, wheel_joints, path):
 				err_y = -0.2
 			if (local_target == (8, 11)):
 				err_x = -0.12
-				err_y = 0.02
+				err_y = 0.03
 			if (local_target == (7, 7)):
 				err_x = -0.05
-				err_y = 0
+				err_y = -0.05
 			if (local_target == (1, 1)):
 				err_x = 0.05
 				err_y = 0
@@ -779,6 +779,10 @@ def generate_map(rooms_entry):
 						map[(x, y)].remove((x1, y1))
 					if (x, y) in map[(x1, y1)]:
 						map[(x1, y1)].remove((x, y))
+	
+	for x in range(0, 9):
+		if (x, 9) in map[(x, 11)]:
+			map[(x, 11)].remove((x, 9))
 
 	for room_name in rooms.keys():
 		rooms_minus_room = rooms.copy()
