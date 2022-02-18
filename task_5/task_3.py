@@ -589,7 +589,7 @@ def nav_logic(client_id, wheel_joints, path):
 						err_y = 0.14
 					elif(local_target[1] in [11]):
 						err_x = 0
-						err_y = -0.15
+						err_y = 0
 					elif(local_target[1] in [9]):
 						err_x = 0
 						err_y = -0.17
@@ -661,16 +661,19 @@ def nav_logic(client_id, wheel_joints, path):
 			if (local_target[1] in [5]):
 				err_y = 0.14
 			if (local_target[1] in [11]):
-				err_y = -0.15
+				err_y = 0.0
 			if (local_target[0] in [2, 5, 8]):
 				err_x = -0.12
 			if (local_target[0] in [3]):
 				err_x = 0.12
 			if (local_target[1] in [9]):
 				err_y = -0.2
-			if (local_target == (8, 11)):
+			if (local_target == (3, 11)):
 				err_x = -0.12
-				err_y = 0.03
+				err_y = -0.04
+			if (local_target == (6, 11)):
+				err_x = 0.12
+				err_y = -0.04
 			if (local_target == (7, 7)):
 				err_x = -0.05
 				err_y = -0.05
@@ -900,9 +903,6 @@ def shortest_path(source, destination, arena_map):
 		if reached:
 			break
 	
-	# print("""""""")
-	# pprint.pprint(predecessor)
-	# pprint.pprint(distance)
 	# Now we have established Predecessors of vertexes if traversed from source,
 	# Crawling backwards to find path
 	path = []

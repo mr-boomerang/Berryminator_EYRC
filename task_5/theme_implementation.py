@@ -176,7 +176,7 @@ def go_to_rack(client_id, rack_id):
 	if rack_id == 1:
 		target_points = [(2, 11)]
 	elif rack_id == 2:
-		target_points = [(8, 11)]
+		target_points = [(6, 11)]
 
 	current_position = get_current_position(client_id)
 	while(current_position == None):
@@ -244,16 +244,6 @@ def pluck_from_zone(client_id, zone_id):
 
 	task_3_primary(client_id, current_position, target_points, bm_map)
 
-	# rotate required
-	
-	#do
-		# capture berry data
-		# pick berry to be plucked
-		# pluck 
-		# deposit
-	# while req not satisfied or no more necessary berries
-
-	# rotate reverse
 	rotate_robot(client_id, rotate_angle)
 
 	global requirements
@@ -322,51 +312,22 @@ def theme_implementation_primary(client_id, rooms_entry):
 
 	global requirements
 	requirements = read_config("Theme_Config.json")
-	# print(requirements)
 
 	for i in [3, 2, 1, 4]:
 		if plucking_completed():
 			break
 		pluck_from_zone(client_id, i)
 	
-	# pluck_from_zone(client_id, 4)
-	# pluck_from_zone(client_id, 2)	
-	# pluck_from_zone(client_id, 1)
 	
 	go_to_rack(client_id, 1)
 	go_to_rack(client_id, 2)
-
-	# time.sleep(3)
-	# _, start_y_enc, rot_enc = wrapper_encoders(client_id)
-	# start_rot = rot_enc
-	# set_bot_movement(client_id, wheel_joints, 0, 0, -3)
-	# while(1):
-	# 	x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
-	# 	total_rot = rot_enc - start_rot
-	# 	if abs(total_rot) > 0.25:
-	# 		break
-	
-	# _, start_y_enc, rot_enc = wrapper_encoders(client_id)
-	# start_rot = rot_enc
-	# set_bot_movement(client_id, wheel_joints, 0, 0, 3)
-	# while(1):
-	# 	x_enc, y_enc, rot_enc = wrapper_encoders(client_id)
-	# 	total_rot = rot_enc - start_rot
-	# 	if abs(total_rot) > 0.25:
-	# 		break
-	# # set_bot_movement(client_id, wheel_joints, 0, 0, 0)
-	# target_points = [(1, 1), (1, 7), (7, 1), (7, 7)]
-	# task_3_primary(client_id, current_position, target_points, bm_map)
-	
-
-
-	time.sleep(3)
+	time.sleep(1)
 
 
 if __name__ == "__main__":
 
 	# Room entry co-ordinate
-	rooms_entry = [(0, 5), (5, 8), (5, 2), (2, 3)]	    # example list of tuples
+	rooms_entry = [(3, 6), (6, 5), (8, 3), (3, 0)]	    # example list of tuples
 
 	###############################################################
 	## You are NOT allowed to make any changes in the code below ##

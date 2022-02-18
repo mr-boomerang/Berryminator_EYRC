@@ -133,7 +133,7 @@ def open_box1(client_id):
 	emptybuff = bytearray()
 	return_code = 1
 	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'bbasket_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
 	return return_code	
 
 def close_box1(client_id):
@@ -141,7 +141,7 @@ def close_box1(client_id):
 	emptybuff = bytearray()
 	return_code = 1
 	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'bbasket_box_dyn',sim.sim_scripttype_childscript,'open_close_1',[],[],command,emptybuff,sim.simx_opmode_blocking)
 	return return_code
 
 def open_box2(client_id):
@@ -149,7 +149,7 @@ def open_box2(client_id):
 	emptybuff = bytearray()
 	return_code = 1
 	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'bbasket_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
 	return return_code		
 
 def close_box2(client_id):
@@ -157,7 +157,7 @@ def close_box2(client_id):
 	emptybuff = bytearray()
 	return_code = 1
 	while return_code != 0:
-		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'deposit_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
+		return_code, _, _, _, _ = sim.simxCallScriptFunction(client_id,'bbasket_box_dyn',sim.sim_scripttype_childscript,'open_close_2',[],[],command,emptybuff,sim.simx_opmode_blocking)
 	return return_code		
 
 def call_check_drop_fk1(client_id):
@@ -204,7 +204,7 @@ def berry_detection_wrapper(client_id):
 
 	# cv2.waitKey(0)
 	# cv2.destroyAllWindows()
-	berry_positions_dictionary['Strawberry'] = sorted(berry_positions_dictionary['Strawberry'], key=calculate_r)
+	berry_positions_dictionary['Strawberry'] = sorted(berry_positions_dictionary['Strawberry'], key=calculate_r, reverse=True)
 	berry_positions_dictionary['Lemon'] = sorted(berry_positions_dictionary['Lemon'], key=calculate_r)
 	berry_positions_dictionary['Blueberry'] = sorted(berry_positions_dictionary['Blueberry'], key=calculate_r, reverse=True)
 
@@ -228,18 +228,18 @@ def pluck_and_deposit(client_id, reference_frame, coordinates, deposit_box):
 	close_gripper(client_id)
 	# time.sleep(0.5)
 
-	berry_type = 'Lemon'
-	if berry_type == 'Blueberry':
-		arm_move_to_target(client_id, reference_frame, berry_x, berry_y, 0)
-		# time.sleep(1)
-		arm_go_to_start_pose(client_id)
-		# time.sleep(1)
-	elif berry_type == 'Lemon':
-		arm_go_to_start_pose(client_id)
-		# time.sleep(1)
-	else:
-		arm_go_to_rack(client_id, reference_frame)
-		# time.sleep(0.7)
+	# berry_type = 'Lemon'
+	# if berry_type == 'Blueberry':
+	# 	arm_move_to_target(client_id, reference_frame, berry_x, berry_y, 0)
+	# 	# time.sleep(1)
+	# 	arm_go_to_start_pose(client_id)
+	# 	# time.sleep(1)
+	# elif berry_type == 'Lemon':
+	# 	arm_go_to_start_pose(client_id)
+	# 	# time.sleep(1)
+	# else:
+	# 	arm_go_to_rack(client_id, reference_frame)
+	# 	# time.sleep(0.7)
 
 	# arm_go_to_rack(client_id, reference_frame)
 	if deposit_box == 1:
@@ -253,7 +253,6 @@ def pluck_and_deposit(client_id, reference_frame, coordinates, deposit_box):
 	# 	time.sleep(0.5)
 	
 	return_code = arm_go_to_start_pose(client_id)
-	time.sleep(0.5)
 
 
 ##############################################################
